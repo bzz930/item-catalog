@@ -27,9 +27,9 @@ CLIENT_ID = json.loads(open(
 APPLICATION_NAME = 'Item Catalog'
 
 
-################
+#########
 # Login #
-################
+#########
 
 # Create anti-forgery state token
 @app.route('/login')
@@ -185,6 +185,18 @@ def getUserID(email):
         return None
 
 
+# Login decorater
+def login_required(f):
+    @wraps(f)
+    def decorated_func(*args, **kwargs):
+        if 'username' in login_session:
+            return f(*args, **kwargs)
+        else:
+            flash("You must log in first to access this page.")
+            return redirect('/login')
+    return decorated_func
+
+
 # Show catalog
 @app.route('/')
 @app.route('/catalog')
@@ -203,9 +215,8 @@ def catalog():
 
 # Create a new category
 @app.route('/catalog/new/', methods = ['GET', 'POST'])
+@login_required
 def newCategory():
-    if 'username' not in login_session:
-        return redirect('/login')
     if request.method == 'POST':
         if not request.form['name']:
             flash('Category must have a name.')
@@ -226,13 +237,12 @@ def newCategory():
 
 # Edit a category
 @app.route('/catalog/<string:category_name>/edit/', methods = ['GET', 'POST'])
+@login_required
 def editCategory(category_name):
-    if 'username' not in login_session:
-        return redirect('/login')
     editedCategory = session.query(Category).filter_by(
                         name = category_name).first()
-    # if editedCategory.user_id != login_session['user_id']:
-    #     return "<script>function myFunction() {alert('You are not authorized to edit this category. Please create your own category in order to edit.');}</script><body onload='myFunction()'>"
+    if editedCategory.user_id != login_session['user_id']:
+        return "<script>function myFunction() {alert('You are not authorized to edit this category. Please create your own category in order to edit.');}</script><body onload='myFunction()'>"
     if request.method == 'POST':
         if not request.form['name']:
             flash('Please enter a new category name.')
@@ -253,9 +263,8 @@ def editCategory(category_name):
 
 # Delete a category
 @app.route('/catalog/<string:category_name>/delete/', methods = ['GET', 'POST'])
+@login_required
 def deleteCategory(category_name):
-    if 'username' not in login_session:
-        return redirect('/login')
     categoryToDelete = session.query(Category).filter_by(
         name = category_name).first()
     if categoryToDelete.user_id != login_session['user_id']:
@@ -320,9 +329,8 @@ def showItemInfo(category_name, item_name):
 
 # Create a new item
 @app.route('/catalog/<string:category_name>/new', methods = ['GET', 'POST'])
+@login_required
 def newItem(category_name):
-    if 'username' not in login_session:
-        return redirect('/login')
     categories = session.query(Category).all()
     category = session.query(Category).filter_by(name = category_name).first()
     if category.user_id != login_session['user_id']:
@@ -347,15 +355,14 @@ def newItem(category_name):
 # Edit an item
 @app.route('/catalog/<string:category_name>/<string:item_name>/edit/',
             methods = ['GET', 'POST'])
+@login_required
 def editItem(category_name, item_name):
-    if 'username' not in login_session:
-        return redirect('/login')
     category = session.query(Category).filter_by(name = category_name).first()
     editedItem = session.query(Item).filter_by(name = item_name).first()
     if category.user_id != login_session['user_id']:
         return "<script>function myFunction() {alert('You are not authorized to edit this item. Please create your own item in order to edit.');}</script><body onload='myFunction()'>"
     if request.method == 'POST':
-        if not request.form['name'] or request.form['description']:
+        if not request.form['name'] or not request.form['description']:
             flash('Nothing has changed.')
         else:
             if request.form['name']:
@@ -366,12 +373,6 @@ def editItem(category_name, item_name):
             session.add(editedItem)
             session.commit()
             flash('Item Successfully Edited!')
-
-        # if not request.form['description']:
-        #     flash('Please enter a description.')
-        # else:
-        #     session.add(editedItem)
-        #     session.commit()
 
         return redirect(url_for('showItems', category_name = category_name))
     else:
@@ -384,14 +385,13 @@ def editItem(category_name, item_name):
 # Delete an item
 @app.route('/catalog/<string:category_name>/<string:item_name>/delete/',
             methods = ['GET', 'POST'])
+@login_required
 def deleteItem(category_name, item_name):
-    if 'username' not in login_session:
-        return redirect('/login')
     category = session.query(Category).filter_by(name = category_name).first()
     itemToDelete = session.query(Item).filter_by(name = item_name,
                                                  category = category).first()
-    # if category.user_id != login_session['user_id']:
-    #     return "<script>function myFunction() {alert('You are not authorized to delete this item. Please create your own item in order to delete.');}</script><body onload='myFunction()'>"
+    if category.user_id != login_session['user_id']:
+        return "<script>function myFunction() {alert('You are not authorized to delete this item. Please create your own item in order to delete.');}</script><body onload='myFunction()'>"
     if request.method == 'POST':
         session.delete(itemToDelete)
         session.commit()
@@ -416,14 +416,19 @@ def catalogJSON():
 
 # View items of a given category
 @app.route('/catalog/<string:category_name>/items/JSON')
-def itemJSON(category_name):
+def catItemsJSON(category_name):
     category = session.query(Category).filter_by(name = category_name).first()
     items = session.query(Item).filter_by(category = category).all()
     return jsonify(items=[i.serialize for i in items])
 
 
-
-
+# View a given item
+@app.route('/catalog/<string:category_name>/<string:item_name>/JSON')
+def itemJSON(category_name, item_name):
+    category = session.query(Category).filter_by(name = category_name).first()
+    item = session.query(Item).filter_by(
+              category = category, name = item_name).first()
+    return jsonify(item=item.serialize)
 
 
 if __name__ == '__main__':

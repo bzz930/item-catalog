@@ -18,29 +18,6 @@ class User(Base):
     username = Column(String(250), index = True, nullable = False)
     email = Column(String(250), nullable = False)
     picture = Column(String(250))
-    pw_hash = Column(String(64))
-
-    # def hash_pw(self, password):
-    #     self.pw_hash = pwd_context.encrypt(password)
-    #
-    # def verify_pw(self, password):
-    #     return pwd_context.verify(password, self.pw_hash)
-    #
-    # def generate_auth_token(self, expiration = 600):
-    #     s = Serializer(secret_key, expires_in = expiration)
-    #     return s.dumps({'id': self.id})
-    #
-    # @staticmethod
-    # def verify_auth_token(token):
-    #     s = Serializer(secret_key)
-    #     try:
-    #         data = s.loads(token)
-    #     except SignatureExpired:
-    #         return None
-    #     except BadSignature:
-    #         return None
-    #     user_id = data['id']
-    #     return user_id
 
 
 class Category(Base):
